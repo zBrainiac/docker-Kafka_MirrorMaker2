@@ -1,0 +1,20 @@
+version: '3.8'
+
+networks:
+  my-proxy-net:
+    name: ssb_csp-ce-net
+
+volumes:
+  log_data:
+
+services:
+  KafkaMM2:
+    image: brainiac/multiarch-mm2:0.1.2
+    container_name: KafkaMM2
+    networks:
+      - my-proxy-net
+    environment:
+      - SOURCE=kafka:9092
+      - DESTINATION=kafka:9092
+      - NUM_STREAMS=1
+      - GROUPID=_mirror_maker

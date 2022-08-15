@@ -1,0 +1,43 @@
+FROM alpine:latest
+
+ENV KAFKA_VERSION 3.2.1
+ENV SCALA_VERSION 2.13
+
+LABEL name="kafka" version=${KAFKA_VERSION}
+
+RUN apk add --no-cache openjdk11-jre bash docker coreutils su-exec
+RUN apk add --no-cache gettext
+
+
+RUN apk add --no-cache -t .build-deps curl ca-certificates jq \
+  && mkdir -p /opt \
+  && mirror=$(curl --stderr /dev/null https://www.apache.org/dyn/closer.cgi\?as_json\=1 | jq -r '.preferred') \
+  && curl -sSL "${mirror}kafka/${KAFKA_VERSION}/kafka_${SCALA_VERSION}-${KAFKA_VERSION}.tgz" \
+  | tar -xzf - -C /opt \
+  && mv /opt/kafka_${SCALA_VERSION}-${KAFKA_VERSION} /opt/kafka \
+  && adduser -DH -s /sbin/nologin kafka \
+  && chown -R kafka: /opt/kafka \
+  && rm -rf /tmp/* \
+  && apk del --purge .build-deps
+
+ENV PATH /sbin:/opt/kafka/bin/:$PATH
+
+WORKDIR /opt/kafka
+
+VOLUME ["/tmp/kafka-logs"]
+
+#ENV WHITELIST *
+#ENV DESTINATION "localhost:9092"
+#ENV SOURCE "localhost:9092"
+#ENV GROUPID "_mirror_maker"
+#ENV NUM_STREAMS "1"
+ENV JMX_PORT "9998"
+ENV KAFKA_HEAP_OPTS "-XX:MaxRAMPercentage=70 -XshowSettings:vm -XX:+ExitOnOutOfMemoryError"
+
+RUN mkdir -p /opt/mirror-maker/
+RUN mkdir -p /tmp/mirror-maker/
+ADD mirrormaker2.properties /tmp/mirror-maker
+ADD runMM2.sh /opt/mirror-maker
+RUN chmod +x /opt/mirror-maker/runMM2.sh
+CMD ./opt/mirror-maker/runMM2.sh
+#ENTRYPOINT ["tail", "-f", "/dev/null"]
